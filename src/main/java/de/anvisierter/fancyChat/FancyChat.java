@@ -6,6 +6,7 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -28,7 +29,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -100,20 +103,23 @@ public final class FancyChat extends JavaPlugin implements Listener {
 
     private Component renderChatMessage(Player player, String rawMessage) {
         FileConfiguration config = getConfig();
-        String format = config.getString("chat.format", "<prefix><player><gray>: </gray><message>");
+        String format = config.getString("chat.format", "<prefix><player><dark_gray>: </dark_gray><message>");
         format = normalizeConfigTags(applyPlaceholderApi(player, format, config.getBoolean("placeholderapi.apply-to-format", true)));
 
         Component prefix = luckPermsMeta(player, true);
         Component suffix = luckPermsMeta(player, false);
+        Style nameStyle = trailingStyle(prefix);
+        Component playerName = Component.text(player.getName()).style(nameStyle);
+        Component displayName = player.displayName().style(player.displayName().style().merge(nameStyle));
         Component message = renderPlayerMessage(player, rawMessage);
         Component item = renderItem(player);
 
         TagResolver resolver = TagResolver.resolver(
                 Placeholder.component("prefix", prefix),
                 Placeholder.component("suffix", suffix),
-                Placeholder.component("player", Component.text(player.getName())),
-                Placeholder.component("display_name", player.displayName()),
-                Placeholder.component("displayname", player.displayName()),
+                Placeholder.component("player", playerName),
+                Placeholder.component("display_name", displayName),
+                Placeholder.component("displayname", displayName),
                 Placeholder.component("message", message),
                 Placeholder.component("item", item)
         );
@@ -124,7 +130,7 @@ public final class FancyChat extends JavaPlugin implements Listener {
     private Component renderPlayerMessage(Player player, String rawMessage) {
         FileConfiguration config = getConfig();
         String message = applyPlaceholderApi(player, rawMessage, config.getBoolean("placeholderapi.apply-to-message", false));
-        String itemToken = config.getString("item.token", "{item}");
+        List<String> itemTokens = itemTokens();
         boolean itemEnabled = config.getBoolean("item.enabled", true);
 
         boolean parseMiniMessage = config.getBoolean("chat.allow-player-minimessage", true);
@@ -132,18 +138,18 @@ public final class FancyChat extends JavaPlugin implements Listener {
             parseMiniMessage = player.hasPermission("fancychat.minimessage");
         }
 
-        if (!itemEnabled || itemToken == null || itemToken.isEmpty() || !message.contains(itemToken)) {
+        if (!itemEnabled || itemTokens.isEmpty() || findNextItemToken(message, 0, itemTokens) == null) {
             return deserializeMessage(message, parseMiniMessage);
         }
 
         Component result = Component.empty();
         int currentIndex = 0;
-        int tokenIndex;
-        while ((tokenIndex = message.indexOf(itemToken, currentIndex)) >= 0) {
-            String beforeToken = message.substring(currentIndex, tokenIndex);
+        ItemTokenMatch tokenMatch;
+        while ((tokenMatch = findNextItemToken(message, currentIndex, itemTokens)) != null) {
+            String beforeToken = message.substring(currentIndex, tokenMatch.index());
             result = result.append(deserializeMessage(beforeToken, parseMiniMessage));
             result = result.append(renderItem(player));
-            currentIndex = tokenIndex + itemToken.length();
+            currentIndex = tokenMatch.index() + tokenMatch.token().length();
         }
 
         if (currentIndex < message.length()) {
@@ -252,11 +258,56 @@ public final class FancyChat extends JavaPlugin implements Listener {
                 .replace("{display_name}", "<display_name>")
                 .replace("{displayname}", "<displayname>")
                 .replace("{message}", "<message>")
-                .replace("{item}", "<item>");
+                .replace("{item}", "<item>")
+                .replace("%item%", "<item>")
+                .replace("[item]", "<item>");
     }
 
     private boolean looksLikeLegacyColorText(String text) {
         return text.matches(".*[&\\u00A7][0-9a-fk-orA-FK-OR].*");
+    }
+
+    private List<String> itemTokens() {
+        List<String> tokens = new ArrayList<>();
+        addItemToken(tokens, getConfig().getString("item.token", "{item}"));
+        addItemToken(tokens, "%item%");
+        addItemToken(tokens, "[item]");
+        return tokens;
+    }
+
+    private void addItemToken(List<String> tokens, String token) {
+        if (token != null && !token.isEmpty() && !tokens.contains(token)) {
+            tokens.add(token);
+        }
+    }
+
+    private ItemTokenMatch findNextItemToken(String message, int startIndex, List<String> tokens) {
+        ItemTokenMatch match = null;
+        for (String token : tokens) {
+            int index = message.indexOf(token, startIndex);
+            if (index >= 0 && (match == null || index < match.index())) {
+                match = new ItemTokenMatch(index, token);
+            }
+        }
+
+        return match;
+    }
+
+    private record ItemTokenMatch(int index, String token) {
+    }
+
+    private Style trailingStyle(Component component) {
+        return trailingStyle(component, Style.empty());
+    }
+
+    private Style trailingStyle(Component component, Style inheritedStyle) {
+        Style currentStyle = inheritedStyle.merge(component.style());
+        List<Component> children = component.children();
+        if (children.isEmpty()) {
+            return currentStyle;
+        }
+
+        return trailingStyle(children.getLast(), currentStyle);
     }
 
     private String prettyMaterialName(Material material) {

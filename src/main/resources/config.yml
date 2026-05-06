@@ -27,6 +27,7 @@ placeholderapi:
 
 item:
   enabled: true
+  # The configured token plus %item% and [item] can be used in chat messages.
   token: "{item}"
   empty-hand: "<gray>[Empty Hand]</gray>"
   format: "<gray>[</gray><item_name><gray> x<amount>]</gray>"
