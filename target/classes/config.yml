@@ -1,0 +1,32 @@
+# Supports MiniMessage in configurable strings.
+# Component placeholders: <prefix>, <suffix>, <player>, <display_name>, <message>, <item>
+# Legacy brace variants like {prefix}, {player}, {message} and {item} also work in config formats.
+# Twitch: anvisierter!!!!
+
+chat:
+  # Main chat layout.
+  format: "<prefix><player><dark_gray>: </dark_gray><white><message></white>"
+
+  # If true, players can use MiniMessage tags in their own chat messages.
+  allow-player-minimessage: true
+
+  # If true, allow-player-minimessage only applies to players with fancychat.minimessage.
+  require-minimessage-permission: false
+
+luckperms:
+  # Prefixes/suffixes can be MiniMessage. If an entry contains legacy & color codes, FancyChat parses those too.
+  parse-prefix-minimessage: true
+  parse-suffix-minimessage: true
+
+placeholderapi:
+  enabled: true
+  apply-to-format: true
+  apply-to-prefix: true
+  apply-to-suffix: true
+  apply-to-message: false
+
+item:
+  enabled: true
+  token: "{item}"
+  empty-hand: "<gray>[Empty Hand]</gray>"
+  format: "<gray>[</gray><item_name><gray> x<amount>]</gray>"

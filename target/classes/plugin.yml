@@ -1,0 +1,29 @@
+name: FancyChat
+description: MiniMessage chat formatting with LuckPerms prefixes and optional item display.
+version: '1.0'
+
+main: de.anvisierter.fancyChat.FancyChat
+api-version: '26.1.2'
+load: POSTWORLD
+
+authors: [ Anvisierter ]
+website: https://twitch.tv/anvisierter
+
+depend:
+  - LuckPerms
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  fancychat:
+    description: Reloads the FancyChat configuration.
+    usage: /<command> reload
+    permission: fancychat.reload
+
+permissions:
+  fancychat.reload:
+    description: Allows reloading the FancyChat configuration.
+    default: op
+  fancychat.minimessage:
+    description: Allows using MiniMessage tags in chat when permission checking is enabled.
+    default: op
